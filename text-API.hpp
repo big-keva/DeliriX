@@ -5,21 +5,27 @@
 # include <functional>
 # include <stdexcept>
 # include <map>
+#include <mtc/wcsstr.h>
 
 namespace DeliriX
 {
-
-  const unsigned default_codepage = (unsigned)-1;
 
   struct MarkupTag
   {
     std::string tagKey;
     uint32_t    uLower;
     uint32_t    uUpper;
+
+    bool  operator == ( const MarkupTag& r ) const
+      {  return tagKey == r.tagKey && uLower == r.uLower && uUpper == r.uUpper;  }
+    bool  operator != ( const MarkupTag& r ) const
+      {  return !(*this == r);  }
   };
 
   class Paragraph
   {
+    friend class IText;
+
     union
     {
       const char*     charstr;
@@ -28,11 +34,9 @@ namespace DeliriX
 
   public:
     Paragraph();
-    Paragraph( const char* str, uint32_t len, uint32_t enc );
-    Paragraph( const widechar* str, uint32_t len );
-   ~Paragraph();
-    Paragraph( const Paragraph& );
     Paragraph( Paragraph&& );
+    Paragraph( const Paragraph& );
+   ~Paragraph();
     Paragraph& operator = ( const Paragraph& );
     Paragraph& operator = ( Paragraph&& );
 
@@ -50,13 +54,22 @@ namespace DeliriX
   {
     using char_string_view = std::basic_string_view<char>;
     using wide_string_view = std::basic_string_view<widechar>;
+
     using markup_attribute = std::map<std::string, std::string>;
 
-    virtual auto  AddMarkupTag( const char_string_view&, const markup_attribute& = {} ) -> mtc::api<IText>  = 0;
-    virtual auto  AddParagraph( const char_string_view&, uint32_t = default_codepage ) -> Paragraph = 0;
-    virtual auto  AddParagraph( const wide_string_view& ) -> Paragraph = 0;
+    virtual auto  AddMarkupTag( const std::string_view&, const markup_attribute& = {} ) -> mtc::api<IText>  = 0;
     virtual auto  AddParagraph( const Paragraph& ) -> Paragraph = 0;
 
+    auto  AddBlock( const char_string_view& str ) -> Paragraph
+      {  return AddBlock( 0, str.data(), str.length() );  }
+    auto  AddBlock( uint32_t cp, const char_string_view& str ) -> Paragraph
+      {  return AddBlock( cp, str.data(), str.length() );  }
+    auto  AddBlock( const char* str, uint32_t len ) -> Paragraph
+      {  return AddBlock( 0, str, len );  }
+    auto  AddBlock( uint32_t cp, const char*, uint32_t ) -> Paragraph;
+    auto  AddBlock( const wide_string_view& str ) -> Paragraph
+      {  return AddBlock( str.data(), str.size() );  }
+    auto  AddBlock( const widechar* str, uint32_t len ) -> Paragraph;
   };
 
   struct ITextView: mtc::Iface

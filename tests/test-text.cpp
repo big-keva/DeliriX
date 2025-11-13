@@ -79,13 +79,13 @@ TestItEasy::RegisterFunc  test_text( []()
       {
         SECTION( "text blocks are added to the end of image as strings or widestrings" )
         {
-          if ( REQUIRE_NOTHROW( text.AddParagraph( "aaa" ) ) )
+          if ( REQUIRE_NOTHROW( text.AddBlock( "aaa" ) ) )
             if ( REQUIRE( text.GetBlocks().size() == 1U ) )
               REQUIRE( text.GetBlocks().back().GetCharStr() == "aaa" );
-          if ( REQUIRE_NOTHROW( text.AddParagraph( { "bbbb", 3 } ) ) )
+          if ( REQUIRE_NOTHROW( text.AddBlock( "bbbb", 3 ) ) )
             if ( REQUIRE( text.GetBlocks().size() == 2U ) )
               REQUIRE( text.GetBlocks().back().GetCharStr() == "bbb" );
-          if ( REQUIRE_NOTHROW( text.AddParagraph( codepages::mbcstowide( codepages::codepage_utf8, "ccc" ) ) ) )
+          if ( REQUIRE_NOTHROW( text.AddBlock( codepages::mbcstowide( codepages::codepage_utf8, "ccc" ) ) ) )
             if ( REQUIRE( text.GetBlocks().size() == 3U ) )
             {
               REQUIRE( text.GetBlocks().back().GetCharStr().empty() );
@@ -101,13 +101,13 @@ TestItEasy::RegisterFunc  test_text( []()
         }
         SECTION( "tags cover lines and are closed automatcally" )
         {
-          if ( REQUIRE_NOTHROW( text.AddParagraph( "aaa" ) ) )
+          if ( REQUIRE_NOTHROW( text.AddBlock( "aaa" ) ) )
           {
             auto  tag = mtc::api<IText>();
 
             if ( REQUIRE_NOTHROW( tag = text.AddMarkupTag( "block" ) )
-              && REQUIRE_NOTHROW( tag->AddParagraph( "bbb" ) )
-              && REQUIRE_NOTHROW( text.AddParagraph( "ccc" ) ) )
+              && REQUIRE_NOTHROW( tag->AddBlock( "bbb" ) )
+              && REQUIRE_NOTHROW( text.AddBlock( "ccc" ) ) )
             {
               if ( REQUIRE( text.GetMarkup().size() == 1U ) )
               {
@@ -138,9 +138,9 @@ TestItEasy::RegisterFunc  test_text( []()
     {
       auto  text = Text();
 
-      text.AddParagraph( "aaa" );
-        text.AddMarkupTag( "bbb" )->AddParagraph( "bbb" );
-      text.AddParagraph( "ccc" );
+      text.AddBlock( "aaa" );
+        text.AddMarkupTag( "bbb" )->AddBlock( "bbb" );
+      text.AddBlock( "ccc" );
 
       SECTION( "* as json" )
       {
@@ -186,7 +186,7 @@ TestItEasy::RegisterFunc  test_text( []()
         auto  tb = text.AddMarkupTag( "table" );
         auto  tr = tb->AddMarkupTag( "tr" );
         auto  td = tr->AddMarkupTag( "td" );
-                   td->AddParagraph( "s1" );
+                   td->AddBlock( "s1" );
               td = tr->AddMarkupTag( "td" );
 
         if ( REQUIRE_NOTHROW( text.Serialize( dump_as::Tags( dump_as::MakeOutput( &tags ) ).ptr() ) ) )
