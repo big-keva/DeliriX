@@ -20,9 +20,7 @@ namespace DeliriX
     DOCX( IText* tx ): output( tx ), refCnt( 0 ) {}
     DOCX( IText* tx, int inplace ): output( tx ), refCnt( inplace ) {}
 
-    auto  AddMarkupTag( const char_string_view&, const markup_attribute& ) -> mtc::api<IText>  override;
-    auto  AddParagraph( const char_string_view&, uint32_t = default_codepage ) -> Paragraph override;
-    auto  AddParagraph( const wide_string_view& ) -> Paragraph override;
+    auto  AddMarkupTag( const std::string_view&, const markup_attribute& ) -> mtc::api<IText>  override;
     auto  AddParagraph( const Paragraph& ) -> Paragraph override;
 
     long  Attach() override;
@@ -40,9 +38,7 @@ namespace DeliriX
     Para( IText* tx ): output( tx ) {}
    ~Para();
 
-    auto  AddMarkupTag( const char_string_view&, const markup_attribute& ) -> mtc::api<IText>  override;
-    auto  AddParagraph( const char_string_view&, uint32_t = default_codepage ) -> Paragraph override;
-    auto  AddParagraph( const wide_string_view& ) -> Paragraph override;
+    auto  AddMarkupTag( const std::string_view&, const markup_attribute& ) -> mtc::api<IText>  override;
     auto  AddParagraph( const Paragraph& ) -> Paragraph override;
 
     implement_lifetime_control
@@ -51,7 +47,7 @@ namespace DeliriX
 
   // DOCX implementation
 
-  auto  DOCX::AddMarkupTag( const char_string_view& tag, const markup_attribute& att ) -> mtc::api<IText>
+  auto  DOCX::AddMarkupTag( const std::string_view& tag, const markup_attribute& att ) -> mtc::api<IText>
   {
     static const std::initializer_list<const char*> ignoreTags = {
       "w:document",
@@ -95,30 +91,18 @@ namespace DeliriX
       auto  intCount = strtol( strCount.c_str(), nullptr, 10 );
       auto  strPaste = mtc::strprintf( mtc::strprintf( "%%%dc", std::max( intCount, 1L ) ).c_str(), ' ' );
 
-      return AddParagraph( strPaste, codepages::codepage_utf8 ), this;
+      return IText::AddBlock( strPaste ), this;
     }
 
     return new DOCX( output->AddMarkupTag( tag, att ) );
   }
 
-  auto  DOCX::AddParagraph( const char_string_view& str, uint32_t enc ) -> Paragraph
-  {
-    string += codepages::mbcstowide( enc, str );
-    return {};
-  }
-
-  auto  DOCX::AddParagraph( const wide_string_view& str ) -> Paragraph
-  {
-    string += str;
-    return {};
-  }
-
   auto  DOCX::AddParagraph( const Paragraph& para ) -> Paragraph
   {
-    uint32_t  encode;
+    uint32_t  coding = para.GetEncoding();
 
-    if ( (encode = para.GetEncoding()) == uint32_t(-1) ) string += para.GetWideStr();
-      else  string += codepages::mbcstowide( encode, para.GetCharStr() );
+    if ( coding == uint32_t(-1) ) string += para.GetWideStr();
+      else  string += codepages::mbcstowide( coding, para.GetCharStr() );
     return {};
   }
 
@@ -134,7 +118,7 @@ namespace DeliriX
     if ( rCount == 0 )
     {
       if ( !string.empty() )
-        output->AddParagraph( string );
+        output->AddBlock( string );
 
       delete this;
     }
@@ -146,10 +130,10 @@ namespace DeliriX
   Para::~Para()
   {
     if ( !string.empty() )
-      output->AddMarkupTag( tagStr )->AddParagraph( string );
+      output->AddMarkupTag( tagStr )->AddBlock( string );
   }
 
-  auto  Para::AddMarkupTag( const char_string_view& tag, const markup_attribute& att ) -> mtc::api<IText>
+  auto  Para::AddMarkupTag( const std::string_view& tag, const markup_attribute& att ) -> mtc::api<IText>
   {
     static const std::initializer_list<const char*> ignoreTags = {
       "w:pPr",
@@ -186,24 +170,12 @@ namespace DeliriX
     return nullptr;
   }
 
-  auto  Para::AddParagraph( const char_string_view& str, uint32_t enc ) -> Paragraph
-  {
-    string += codepages::mbcstowide( enc, str );
-    return {};
-  }
-
-  auto  Para::AddParagraph( const wide_string_view& str ) -> Paragraph
-  {
-    string += str;
-    return {};
-  }
-
   auto  Para::AddParagraph( const Paragraph& para ) -> Paragraph
   {
-    uint32_t  encode;
+    uint32_t  coding = para.GetEncoding();
 
-    if ( (encode = para.GetEncoding()) == uint32_t(-1) ) string += para.GetWideStr();
-      else  string += codepages::mbcstowide( encode, para.GetCharStr() );
+    if ( coding == uint32_t(-1) ) string += para.GetWideStr();
+      else  string += codepages::mbcstowide( coding, para.GetCharStr() );
     return {};
   }
 

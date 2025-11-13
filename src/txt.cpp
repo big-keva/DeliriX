@@ -11,8 +11,6 @@ namespace DeliriX
 
   protected:
     auto  AddMarkupTag( const std::string_view&, const markup_attribute& ) -> mtc::api<IText> override;
-    auto  AddParagraph( const char_string_view&, uint32_t ) -> Paragraph override;
-    auto  AddParagraph( const wide_string_view& ) -> Paragraph override;
     auto  AddParagraph( const Paragraph& ) -> Paragraph override;
 
     void  Close();
@@ -38,18 +36,30 @@ namespace DeliriX
 
   Text::Text(): refCount( 1 ) {}
 
+  Text::Text( const wide_string_view& str ): refCount( 1 )
+  {
+    if ( !str.empty() )
+      AddBlock( str );
+  }
+
+  Text::Text( uint32_t cp, const char_string_view& str ): refCount( 1 )
+  {
+    if ( !str.empty() )
+      AddBlock( cp, str );
+  }
+
   Text::Text( const std::initializer_list<InitIt>& initlist, unsigned encoding ): refCount( 1 )
   {
     auto  fnFill = std::function<void( mtc::api<IText>, const std::initializer_list<InitIt>& )>();
 
-    encoding = encoding == default_codepage ? codepages::codepage_utf8 : encoding;
+    encoding = encoding == 0 ? codepages::codepage_utf8 : encoding;
 
     fnFill = [&]( mtc::api<IText> to, const std::initializer_list<InitIt>& it )
     {
       for ( auto& next: it )
-        if ( next.psz != nullptr )  to->AddParagraph( { next.psz, next.cch }, encoding );
+        if ( next.psz != nullptr )  to->AddBlock( encoding, next.psz, next.cch );
           else
-        if ( next.wsz != nullptr )  to->AddParagraph( wide_string_view{ next.wsz, next.cch } );
+        if ( next.wsz != nullptr )  to->AddBlock( next.wsz, next.cch );
           else
         fnFill( to->AddMarkupTag( next.tag ), *next.arr );
     };
@@ -60,6 +70,21 @@ namespace DeliriX
   Text::~Text()
   {
     clear();
+  }
+
+  Text& Text::operator=( Text&& txt )
+  {
+    if ( nested != nullptr )
+      nested->Close();
+    if ( txt.nested != nullptr )
+      txt.nested->Close();
+
+    blocks = std::move( txt.blocks );
+    markup = std::move( txt.markup );
+      nested = nullptr;
+    length = std::move( txt.length );
+      txt.length = 0;
+    return *this;
   }
 
   auto  Text::Create() -> mtc::api<Text>
@@ -92,26 +117,6 @@ namespace DeliriX
       nested->Close();
 
     return nested = new Markup( this, tag );
-  }
-
-  auto  Text::AddParagraph( const char_string_view& str, uint32_t enc ) -> Paragraph
-  {
-    if ( nested != nullptr )
-      nested->Close();
-
-    blocks.emplace_back( Paragraph( str.data(), str.length(), enc == default_codepage ? codepages::codepage_utf8 : enc ) );
-      length += blocks.back().GetTextSize();
-    return blocks.back();
-  }
-
-  auto  Text::AddParagraph( const wide_string_view& wcs ) -> Paragraph
-  {
-    if ( nested != nullptr )
-      nested->Close();
-
-    blocks.emplace_back( Paragraph( wcs.data(), wcs.length() ) );
-      length += blocks.back().GetTextSize();
-    return blocks.back();
   }
 
   auto  Text::AddParagraph( const Paragraph& p ) -> Paragraph
@@ -194,33 +199,6 @@ namespace DeliriX
     return nested = new Markup( this, tag );
   }
 
-  auto  Text::Markup::AddParagraph( const char_string_view& str, unsigned enc ) -> Paragraph
-  {
-    if ( tagBeg == size_t(-1) )
-      throw std::logic_error( "attempt of adding line to closed markup" );
-
-    if ( nested != nullptr )
-      nested->Close();
-
-    docptr->blocks.emplace_back( str.data(), str.length(), enc == default_codepage ? codepages::codepage_utf8 : enc );
-      docptr->length += docptr->blocks.back().GetTextSize();
-
-    return docptr->blocks.back();
-  }
-
-  auto  Text::Markup::AddParagraph( const wide_string_view& str ) -> Paragraph
-  {
-    if ( tagBeg == size_t(-1) )
-      throw std::logic_error( "attempt of adding line to closed markup" );
-
-    if ( nested != nullptr )
-      nested->Close();
-
-    docptr->blocks.emplace_back( str.data(), str.length() );
-      docptr->length += docptr->blocks.back().GetTextSize();
-    return docptr->blocks.back();
-  }
-
   auto  Text::Markup::AddParagraph( const Paragraph& str ) -> Paragraph
   {
     if ( tagBeg == size_t(-1) )
@@ -253,6 +231,36 @@ namespace DeliriX
 
       tagBeg = size_t(-1);
     }
+  }
+
+  // Text::InitIt implementation
+
+  Text::InitIt::InitIt( const char* s ):
+    psz( s ),
+    wsz( nullptr ),
+    tag( nullptr ),
+    arr( nullptr )
+  {
+    for ( cch = 0; psz[cch] != 0; ++cch )
+      (void)NULL;
+  }
+
+  Text::InitIt::InitIt( const widechar* s ):
+    psz( nullptr ),
+    wsz( s ),
+    tag( nullptr ),
+    arr( nullptr )
+  {
+    for ( cch = 0; wsz[cch] != 0; ++cch )
+      (void)NULL;
+  }
+
+  Text::InitIt::InitIt( const char* t, const std::initializer_list<InitIt>& l ):
+    psz( nullptr ),
+    wsz( nullptr ),
+    tag( t ),
+    arr( &l )
+  {
   }
 
 }

@@ -54,20 +54,6 @@ namespace DeliriX
   {
   }
 
-  Paragraph::Paragraph( const char* str, uint32_t len, uint32_t enc )
-  {
-    if ( len == (uint32_t)-1 )
-      for ( len = 0; str[len] != 0; ++len ) (void)NULL;
-    charstr = (char*)(1 + ParagraphCtl::Create( str, len, enc ));
-  }
-
-  Paragraph::Paragraph( const widechar* str, uint32_t len )
-  {
-    if ( len == (uint32_t)-1 )
-      for ( len = 0; str[len] != 0; ++len ) (void)NULL;
-    widestr = (widechar*)(1 + ParagraphCtl::Create( str, len ));
-  }
-
   Paragraph::~Paragraph()
   {
     if ( charstr != nullptr && --((ParagraphCtl*)charstr)[-1].rcount == 0 )
@@ -155,6 +141,34 @@ namespace DeliriX
     return src != nullptr;
   }
 
+  // IText
+
+  auto  IText::AddBlock( const widechar* str, uint32_t len ) -> Paragraph
+  {
+    Paragraph para;
+
+    if ( len == uint32_t(-1) )
+      for ( len = 0; str[len] != 0; ++len )
+        (void)NULL;
+
+    para.widestr = (widechar*)(1 + ParagraphCtl::Create( str, len ));
+
+    return AddParagraph( para );
+  }
+
+  auto  IText::AddBlock( uint32_t cp, const char* str, uint32_t len ) -> Paragraph
+  {
+    Paragraph para;
+
+    if ( len == uint32_t(-1) )
+      for ( len = 0; str[len] != 0; ++len )
+        (void)NULL;
+
+    para.charstr = (char*)(1 + ParagraphCtl::Create( str, len, cp ));
+
+    return AddParagraph( para );
+  }
+
   // helpers
 
   class UtfTxt final: public IText
@@ -170,21 +184,19 @@ namespace DeliriX
     {
       return new UtfTxt( output->AddMarkupTag( tag ), encode );
     }
-    auto  AddParagraph( const char_string_view& str, unsigned enc ) -> Paragraph override
+    auto  AddParagraph( const Paragraph& para ) -> Paragraph override
     {
-      widechar  wcsstr[0x400];
+      auto  coding = para.GetEncoding();
 
-      if ( enc != codepages::codepage_utf8 && str.length() <= std::size( wcsstr ) )
-        return output->AddParagraph( wide_string_view{ wcsstr, codepages::mbcstowide( enc, wcsstr, str.data(), str.length() ) } );
-      return output->AddParagraph( codepages::mbcstowide( enc != 0 ? enc : encode, str ) );
-    }
-    auto  AddParagraph( const wide_string_view& str ) -> Paragraph override
-    {
-      return output->AddParagraph( str );
-    }
-    auto  AddParagraph( const Paragraph& ) -> Paragraph override
-    {
-      throw std::logic_error( "not implemented" );
+      if ( coding != uint32_t(-1) )
+      {
+        widechar  wcsstr[0x400];
+
+        if ( coding != codepages::codepage_utf8 && para.GetTextSize() <= std::size( wcsstr ) )
+          return output->AddBlock( wcsstr, codepages::mbcstowide( coding, wcsstr, para.GetCharStr() ) );
+        return output->AddBlock( codepages::mbcstowide( codepages::codepage_utf8, para.GetCharStr() ) );
+      }
+      return output->AddParagraph( para );
     }
 
   protected:
@@ -225,9 +237,9 @@ namespace DeliriX
           auto  enc = lineIt->GetEncoding();
 
           if ( enc == unsigned(-1) )
-            to->AddParagraph( lineIt->GetWideStr() );
+            to->AddBlock( lineIt->GetWideStr() );
           else
-            to->AddParagraph( lineIt->GetCharStr(), enc );
+            to->AddBlock( enc, lineIt->GetCharStr() );
 
           offset += lineIt->GetTextSize();
 

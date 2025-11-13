@@ -88,7 +88,7 @@ namespace DeliriX::tinyxml
       return Elem( text, *node.ToElement() );
 
     if ( node.ToText() != nullptr && node.ToText()->Value() != nullptr )
-      text->AddParagraph( node.ToText()->Value(), encode );
+      text->AddBlock( encode, node.ToText()->Value() );
 
     return text;
   }

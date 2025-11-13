@@ -79,7 +79,7 @@ namespace load_as {
 
   void  jsonString( mtc::api<IText> doc, mtc::json::parse::reader& src )
   {
-    doc->AddParagraph( jsonString( src ), codepages::codepage_utf8 );
+    doc->AddBlock( jsonString( src ) );
   }
 
   void  jsonVector( mtc::api<IText> doc, mtc::json::parse::reader& src )

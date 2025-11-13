@@ -1,3 +1,5 @@
+#include <moonycode/codes.h>
+
 # include "../DOM-load.hpp"
 # include <mtc/json.h>
 
@@ -85,7 +87,7 @@ namespace load_as {
         do str += chr;
           while ( (chr = src.getnext()) != '\0' && chr != '\n' && chr != '<' );
 
-        tagStack.back().tag->AddParagraph( str );
+        tagStack.back().tag->AddBlock( str );
 
         src.putback( chr );
       }

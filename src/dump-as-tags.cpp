@@ -48,15 +48,24 @@ namespace dump_as {
     {
       return new TagsTag( fWrite, encode, uShift + 1, { tag.data(), tag.length() } );
     }
-    auto  AddParagraph( const char_string_view& str, uint32_t ucp ) -> Paragraph override
+    auto  AddParagraph( const Paragraph& src ) -> Paragraph override
     {
-      auto  salter = std::string();
-      auto  sprint = str;
+      std::string       utfstr;
+      std::string_view  asView;
+      auto              coding = src.GetEncoding();
 
-      ucp = ucp == default_codepage ? codepages::codepage_utf8 : ucp;
-
-      if ( encode != unsigned(-1) && ucp != encode )
-        sprint = (salter = codepages::mbcstombcs( encode, ucp, sprint ));
+      switch ( coding )
+      {
+        case uint32_t(-1):
+          asView = (utfstr = codepages::widetombcs( codepages::codepage_utf8, src.GetWideStr() ));
+          break;
+        case codepages::codepage_utf8:
+          asView = src.GetCharStr();
+          break;
+        default:
+          asView = (utfstr = codepages::mbcstombcs( codepages::codepage_utf8, coding, src.GetCharStr() ));
+          break;
+      }
 
       if ( !tagStr.empty() )
       {
@@ -64,20 +73,11 @@ namespace dump_as {
           fWrite( "  ", 2 );
       }
 
-      Print( sprint );
+      Print( asView );
 
       fWrite( "\n", 1 );
 
       return {};
-    }
-    auto  AddParagraph( const wide_string_view& wcs ) -> Paragraph override
-    {
-      return AddParagraph( codepages::widetombcs( encode, wcs ), encode );
-    }
-    auto  AddParagraph( const Paragraph& src ) -> Paragraph override
-    {
-      return src.GetEncoding() == uint32_t(-1) ? AddParagraph( src.GetWideStr() )
-        : AddParagraph( src.GetCharStr(), src.GetEncoding() );
     }
   protected:
     void  Print( const std::string_view& src ) const

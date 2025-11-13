@@ -20,9 +20,7 @@ namespace DeliriX
     ODT( IText* tx ): output( tx ), refCnt( 0 ) {}
     ODT( IText* tx, int inplace ): output( tx ), refCnt( inplace ) {}
 
-    auto  AddMarkupTag( const char_string_view&, const markup_attribute& ) -> mtc::api<IText>  override;
-    auto  AddParagraph( const char_string_view&, uint32_t = default_codepage ) -> Paragraph override;
-    auto  AddParagraph( const wide_string_view& ) -> Paragraph override;
+    auto  AddMarkupTag( const std::string_view&, const markup_attribute& ) -> mtc::api<IText>  override;
     auto  AddParagraph( const Paragraph& ) -> Paragraph override;
 
     long  Attach() override;
@@ -32,7 +30,7 @@ namespace DeliriX
 
   // ODT implementation
 
-  auto  ODT::AddMarkupTag( const char_string_view& tag, const markup_attribute& att ) -> mtc::api<IText>
+  auto  ODT::AddMarkupTag( const std::string_view& tag, const markup_attribute& att ) -> mtc::api<IText>
   {
     static const std::initializer_list<const char*> ignoreTags = {
       "office:document-content",
@@ -76,30 +74,18 @@ namespace DeliriX
       auto  intCount = strtol( strCount.c_str(), nullptr, 10 );
       auto  strPaste = mtc::strprintf( mtc::strprintf( "%%%dc", std::max( intCount, 1L ) ).c_str(), ' ' );
 
-      return AddParagraph( strPaste, codepages::codepage_utf8 ), this;
+      return AddBlock( strPaste ), this;
     }
 
     return new ODT( output->AddMarkupTag( tag, att ) );
   }
 
-  auto  ODT::AddParagraph( const char_string_view& str, uint32_t enc ) -> Paragraph
-  {
-    string += codepages::mbcstowide( enc, str );
-    return {};
-  }
-
-  auto  ODT::AddParagraph( const wide_string_view& str ) -> Paragraph
-  {
-    string += str;
-    return {};
-  }
-
   auto  ODT::AddParagraph( const Paragraph& para ) -> Paragraph
   {
-    uint32_t  encode;
+    auto  coding = para.GetEncoding();
 
-    if ( (encode = para.GetEncoding()) == uint32_t(-1) ) string += para.GetWideStr();
-      else  string += codepages::mbcstowide( encode, para.GetCharStr() );
+    if ( coding == uint32_t(-1) ) string += para.GetWideStr();
+      else string += codepages::mbcstowide( coding, para.GetCharStr() );
     return {};
   }
 
@@ -115,7 +101,7 @@ namespace DeliriX
     if ( rCount == 0 )
     {
       if ( !string.empty() )
-        output->AddParagraph( string );
+        output->AddBlock( string );
 
       delete this;
     }

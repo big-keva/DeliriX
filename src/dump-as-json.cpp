@@ -47,15 +47,30 @@ namespace dump_as {
       if ( is_Tag )
         fWrite( " }", 2 );
     }
-    auto  AddMarkupTag( const char_string_view& tag, const markup_attribute& ) -> mtc::api<IText> override
+    auto  AddMarkupTag( const std::string_view& tag, const markup_attribute& ) -> mtc::api<IText> override
     {
       if ( nItems++ != 0 )  fWrite( ",\n", 2 );
         else fWrite( "\n", 1 );
 
       return new JsonTag( fWrite, uShift + 1, { tag.data(), tag.length() } );
     }
-    auto  AddParagraph( const char_string_view& str, uint32_t encode ) -> Paragraph override
+    auto  AddParagraph( const Paragraph& str ) -> Paragraph override
     {
+      auto  utfstr = std::string();
+      auto  asView = str.GetCharStr();
+      auto  coding = str.GetEncoding();
+
+      switch ( coding )
+      {
+        case uint32_t(-1):
+          asView = (utfstr = codepages::widetombcs( codepages::codepage_utf8, str.GetWideStr() ));
+        case codepages::codepage_utf8:
+          break;
+        default:
+          asView = (utfstr = codepages::mbcstombcs( codepages::codepage_utf8, coding, asView ));
+          break;
+      }
+
       if ( nItems != 0 )  fWrite( ",\n", 2 );
         else fWrite( "\n", 1 );
 
@@ -63,26 +78,12 @@ namespace dump_as {
         fWrite( "  ", 2 );
 
       fWrite( "\"", 1 );
-
-      if ( (encode = encode == default_codepage ? codepages::codepage_utf8 : encode) != codepages::codepage_utf8 )
-        Print( codepages::mbcstombcs( codepages::codepage_utf8, encode, str ) );
-      else Print( str );
-
+        Print( asView );
       fWrite( "\"", 1 );
 
       ++nItems;
 
       return {};
-    }
-    auto  AddParagraph( const wide_string_view& str ) -> Paragraph override
-    {
-      return AddParagraph( codepages::widetombcs( codepages::codepage_utf8, str ),
-        codepages::codepage_utf8 );
-    }
-    auto  AddParagraph( const Paragraph& str ) -> Paragraph override
-    {
-      return str.GetEncoding() == uint32_t(-1) ? AddParagraph( str.GetWideStr() )
-        : AddParagraph( str.GetCharStr(), str.GetEncoding() );
     }
   protected:
     void  Print( const std::string_view& src ) const

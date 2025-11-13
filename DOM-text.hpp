@@ -20,29 +20,9 @@ namespace DeliriX
     {
       friend class Text;
 
-      InitIt( const char* s, size_t l = size_t(-1) ):
-        psz( s ),
-        wsz( nullptr ),
-        cch( l ),
-        tag( nullptr ),
-        arr( nullptr )  {}
-      InitIt( const widechar* s, size_t l = size_t(-1) ):
-        psz( nullptr ),
-        wsz( s ),
-        cch( l ),
-        tag( nullptr ),
-        arr( nullptr )  {}
-      InitIt( const char* t, const std::initializer_list<InitIt>& l ):
-        psz( nullptr ),
-        wsz( nullptr ),
-        tag( t ),
-        arr( &l ) {}
-      template <class StringAllocator>
-        InitIt( const std::basic_string<char, std::char_traits<char>, StringAllocator>& s ):
-          InitIt( s.c_str(), s.length() ) {}
-      template <class StringAllocator>
-        InitIt( const std::basic_string<widechar, std::char_traits<widechar>, StringAllocator>& s ):
-          InitIt( s.c_str(), s.length() ) {}
+      InitIt( const char* s );
+      InitIt( const widechar* s );
+      InitIt( const char* t, const std::initializer_list<InitIt>& l );
 
     protected:
       const char*                           psz;
@@ -57,8 +37,14 @@ namespace DeliriX
 
   public:
     Text();
-    Text( const std::initializer_list<InitIt>&, unsigned cp = default_codepage );
+    Text( const wide_string_view& str );
+    Text( const char_string_view& str ): Text( 0, str ) {}
+    Text( uint32_t, const char_string_view& );
+    Text( const std::initializer_list<InitIt>&, unsigned cp = 0 );
+    Text( Text&& );
    ~Text();
+
+    Text& operator = ( Text&& );
 
   // head creation helper
     static  auto  Create() -> mtc::api<Text>;
@@ -68,10 +54,8 @@ namespace DeliriX
     long  Detach() override;
 
   // IText overridables
-    auto  AddMarkupTag( const char_string_view&, const markup_attribute& = {} ) -> mtc::api<IText>  override;
-    auto  AddParagraph( const char_string_view&, uint32_t = default_codepage ) -> Paragraph override;
-    auto  AddParagraph( const wide_string_view& ) -> Paragraph override;
-    auto  AddParagraph( const Paragraph& )        -> Paragraph override;
+    auto  AddMarkupTag( const std::string_view&, const markup_attribute& = {} ) -> mtc::api<IText>  override;
+    auto  AddParagraph( const Paragraph& ) -> Paragraph override;
 
   // ITextView overridables
     auto  GetBlocks() const -> mtc::span<const Paragraph> override  {  return blocks;  }
@@ -98,7 +82,7 @@ namespace DeliriX
   };
 
   bool  IsEncoded( const ITextView&, unsigned encoding );
-  auto  CopyUtf16( IText*, const ITextView&, unsigned default_encoding = default_codepage ) -> IText*;
+  auto  CopyUtf16( IText*, const ITextView&, unsigned default_encoding = 0 ) -> IText*;
   auto  Serialize( IText*, const ITextView& ) -> IText*;
 
 // Text template implementation
