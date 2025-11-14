@@ -62,6 +62,10 @@ namespace DeliriX
     auto  GetMarkup() const -> mtc::span<const MarkupTag> override  {  return markup;  }
     auto  GetLength() const -> uint32_t override                    {  return length;  };
 
+  // elements access
+    auto  GetBlocks() -> std::vector<Paragraph>& {  return blocks;  }
+    auto  GetMarkup() -> std::vector<MarkupTag>& {  return markup;  }
+
   // modification
     void  clear();
 
@@ -81,8 +85,8 @@ namespace DeliriX
 
   };
 
-  bool  IsEncoded( const ITextView&, unsigned encoding );
-  auto  CopyUtf16( IText*, const ITextView&, unsigned default_encoding = 0 ) -> IText*;
+  bool  IsEncoded( const ITextView&, uint32_t encoding );
+  auto  CopyUtf16( IText*, const ITextView&, uint32_t default_encoding = 0 ) -> IText*;
   auto  Serialize( IText*, const ITextView& ) -> IText*;
 
 // Text template implementation
