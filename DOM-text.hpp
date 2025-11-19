@@ -37,11 +37,11 @@ namespace DeliriX
 
   public:
     Text();
+    Text( Text&& );
     Text( const wide_string_view& str );
     Text( const char_string_view& str ): Text( 0, str ) {}
     Text( uint32_t, const char_string_view& );
     Text( const std::initializer_list<InitIt>&, unsigned cp = 0 );
-    Text( Text&& );
    ~Text();
 
     Text& operator = ( Text&& );
