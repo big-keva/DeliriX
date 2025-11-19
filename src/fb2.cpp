@@ -1,7 +1,4 @@
-
-# include "../archive.hpp"
 # include "../formats.hpp"
-# include "xml.hpp"
 # include <moonycode/codes.h>
 # include <mtc/wcsstr.h>
 
@@ -83,7 +80,7 @@ namespace DeliriX
     {
       auto  xt = FB2( text, 1 );
 
-      tinyxml::ParseXML( &xt, buff.ptr() );
+      ParseXML( &xt, buff.ptr() );
 
       return 0;
     }

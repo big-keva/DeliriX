@@ -10,12 +10,35 @@ namespace DeliriX {
   {
     mtc::api<const mtc::IByteBuffer>  buffer;
     unzFile                           zipped;
+    bool                              inRead = false;
+
+    class ZipEntry;
 
   public:
     ZipArchive( const mtc::api<const mtc::IByteBuffer>&, unzFile );
    ~ZipArchive();
 
-    auto  GetObject( const char* path ) -> mtc::api<mtc::IByteBuffer> override;
+    auto  GetFile( const char* path ) -> mtc::api<const mtc::IByteBuffer> override;
+    auto  ReadDir() -> mtc::api<IEntry> override;
+
+    implement_lifetime_control
+  };
+
+  class ZipArchive::ZipEntry final: public IEntry
+  {
+    unz_file_info         fiinfo;
+    char                  szname[0x400];
+    mtc::api<ZipArchive>  parent;
+
+  public:
+    ZipEntry( const unz_file_info&, const char*, ZipArchive* );
+
+    auto  GetName() const noexcept -> std::string override
+      {  return szname;  }
+    auto  GetAttr() const noexcept -> uint32_t
+      {  return uint32_t(fiinfo.internal_fa);  }
+    auto  GetFile() const -> mtc::api<const mtc::IByteBuffer> override
+      {  return parent->GetFile( szname ); }
 
     implement_lifetime_control
   };
@@ -47,7 +70,7 @@ namespace DeliriX {
       unzClose( zipped );
   }
 
-  auto  ZipArchive::GetObject( const char* objectname ) -> mtc::api<mtc::IByteBuffer>
+  auto  ZipArchive::GetFile( const char* objectname ) -> mtc::api<const mtc::IByteBuffer>
   {
     if ( zipped != nullptr && unzLocateFile( zipped, objectname, 1 ) == UNZ_OK && unzOpenCurrentFile( zipped ) == UNZ_OK )
     {
@@ -65,6 +88,28 @@ namespace DeliriX {
     return nullptr;
   }
 
+  auto ZipArchive::ReadDir() -> mtc::api<IEntry>
+  {
+    unz_file_info fiinfo;
+    char          szname[0x400];
+
+    if ( !inRead )
+    {
+      if ( unzGoToFirstFile( zipped ) == UNZ_OK ) inRead = true;
+        else return nullptr;
+    }
+      else
+    {
+      if ( unzGoToNextFile( zipped ) != UNZ_OK )
+        return inRead = false, nullptr;
+    }
+
+    if ( unzGetCurrentFileInfo( zipped, &fiinfo, szname, sizeof(szname), nullptr, 0, nullptr, 0 ) != UNZ_OK )
+      return inRead = false, nullptr;
+
+    return new ZipEntry( fiinfo, szname, this );
+  }
+
   auto  OpenZip( const mtc::api<const mtc::IByteBuffer>& src ) -> mtc::api<IArchive>
   {
     unzFile zip;
@@ -73,9 +118,18 @@ namespace DeliriX {
       throw std::invalid_argument( "archive::OpenZip source buffer is empty" );
 
     if ( (zip = unzOpen2( (const char*)src.ptr(), &zlib_funcs ) ) == nullptr )
-      throw std::invalid_argument( "archive::OpenZip unzOpen2() failed" );
+      return nullptr;
 
     return new ZipArchive( src, zip );
+  }
+
+  // ZipArchive::ZipEntry implementation
+
+  ZipArchive::ZipEntry::ZipEntry( const unz_file_info& unz, const char* str, ZipArchive* zip ):
+    fiinfo( unz ),
+    parent( zip )
+  {
+    strcpy( szname, str );
   }
 
   // zip interface functions

@@ -205,7 +205,7 @@ namespace DeliriX
 
   };
 
-  bool  IsEncoded( const ITextView& textview, unsigned codepage )
+  bool  IsEncoded( const ITextView& textview, uint32_t codepage )
   {
     for ( auto& next: textview.GetBlocks() )
       if ( next.GetEncoding() != codepage )
@@ -213,7 +213,7 @@ namespace DeliriX
     return true;
   }
 
-  auto  CopyUtf16( IText* output, const ITextView& source, unsigned encode ) -> IText*
+  auto  CopyUtf16( IText* output, const ITextView& source, uint32_t encode ) -> IText*
   {
     UtfTxt  utfOut( output, encode );
       utfOut.Attach();

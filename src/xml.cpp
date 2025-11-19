@@ -1,10 +1,11 @@
-# include "xml.hpp"
+# include "../formats.hpp"
+# include "../compat.hpp"
 # include <moonycode/codes.h>
 # include <mtc/wcsstr.h>
 # include <tinyxml2.h>
 # include <map>
 
-namespace DeliriX::tinyxml
+namespace DeliriX
 {
 
   class Parser
@@ -40,12 +41,12 @@ namespace DeliriX::tinyxml
         this->encode = codepages::codepage_1251;
       }
         else
-      if ( mtc::w_strcasecmp( encode->second.c_str(), "iso-8859" ) == 0 )
+      if ( mtc::w_strncasecmp( encode->second.c_str(), "iso-8859", 8 ) == 0 )
       {
         this->encode = codepages::codepage_iso;
       }
         else
-      throw Error( mtc::strprintf( "invalid encoding '%s'", encode->second.c_str() ) );
+      throw Error( mtc::strprintf( "invalid encoding '%s' @" __FILE__ ":" LINE_STRING, encode->second.c_str() ) );
     }
     return text;
   }
@@ -126,20 +127,22 @@ namespace DeliriX::tinyxml
     return outmap;
   }
 
-  void  ParseXML( IText* text, const mtc::api<const mtc::IByteBuffer>& buff )
+  int   ParseXML( IText* text, const mtc::api<const mtc::IByteBuffer>& buff )
   {
     Parser                load;
     tinyxml2::XMLDocument xdoc;
 
     if ( buff == nullptr )
-      throw std::invalid_argument( "XML source is null" );
+      throw std::invalid_argument( "XML source is null @" __FILE__ ":" LINE_STRING );
 
     if ( xdoc.Parse( buff->GetPtr(), buff->GetLen() ) != tinyxml2::XML_SUCCESS )
-      throw Error( mtc::strprintf( "failed to parse XML, error '%s:%s'",
+      throw Error( mtc::strprintf( "failed to parse XML, error '%s:%s' @" __FILE__ ":" LINE_STRING,
         xdoc.ErrorName(), xdoc.ErrorStr() ) );
 
     for ( auto child = xdoc.FirstChild(); child != nullptr; child = child->NextSibling() )
       load.Load( text, *child );
+
+    return 0;
   }
 
 }

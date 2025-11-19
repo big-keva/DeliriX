@@ -36,6 +36,16 @@ namespace DeliriX
 
   Text::Text(): refCount( 1 ) {}
 
+  Text::Text( Text&& r )
+  {
+    if ( r.nested != nullptr )
+      r.nested->Close();
+
+    blocks = std::move( r.blocks );
+    markup = std::move( r.markup );
+    length = std::move( r.length );  r.length = 0;
+  }
+
   Text::Text( const wide_string_view& str ): refCount( 1 )
   {
     if ( !str.empty() )

@@ -1,7 +1,6 @@
 
 # include "../archive.hpp"
 # include "../formats.hpp"
-# include "xml.hpp"
 # include <moonycode/codes.h>
 # include <mtc/wcsstr.h>
 
@@ -113,13 +112,13 @@ namespace DeliriX
     if ( text != nullptr )
     {
       auto  zarc = OpenZip( buff );
-      auto  zsrc = zarc->GetObject( "content.xml" );
+      auto  zsrc = zarc->GetFile( "content.xml" );
 
       if ( zsrc != nullptr )
       {
         auto  xt = ODT( text, 1 );
 
-        tinyxml::ParseXML( &xt, zsrc.ptr() );
+        ParseXML( &xt, zsrc.ptr() );
 
         return 0;
       }

@@ -32,17 +32,29 @@ TestItEasy::RegisterFunc  test_text_base( []()
 
             SECTION( "getting non-existing objects returns nullptr" )
             {
-              if ( REQUIRE_NOTHROW( buffer = archive->GetObject( "non-existing-object" ) ) )
+              if ( REQUIRE_NOTHROW( buffer = archive->GetFile( "non-existing-object" ) ) )
                 REQUIRE( buffer == nullptr );
             }
             SECTION( "getting existing objects return those objects" )
             {
-              if ( REQUIRE_NOTHROW( buffer = archive->GetObject( "zip_data.txt" ) )
+              if ( REQUIRE_NOTHROW( buffer = archive->GetFile( "zip_data.txt" ) )
                 && REQUIRE( buffer != nullptr ) )
               {
                 if ( REQUIRE( buffer->GetLen() == 28 ) )
                   REQUIRE( memcmp( buffer->GetPtr(), "this is a test zip file data", 28 ) == 0 );
               }
+            }
+          }
+          SECTION( "files may be listed as directory" )
+          {
+            mtc::api<IArchive::IEntry>  entry;
+
+            if ( REQUIRE_NOTHROW( entry = archive->ReadDir() ) && REQUIRE( entry != nullptr ) )
+            {
+              REQUIRE( entry->GetName() == "zip_data.txt" );
+
+              if ( REQUIRE_NOTHROW( entry = archive->ReadDir() ) )
+                REQUIRE( entry == nullptr );
             }
           }
         }
