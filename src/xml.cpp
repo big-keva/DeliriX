@@ -131,13 +131,16 @@ namespace DeliriX
   {
     Parser                load;
     tinyxml2::XMLDocument xdoc;
+    tinyxml2::XMLError    xres;
 
     if ( buff == nullptr )
       throw std::invalid_argument( "XML source is null @" __FILE__ ":" LINE_STRING );
 
-    if ( xdoc.Parse( buff->GetPtr(), buff->GetLen() ) != tinyxml2::XML_SUCCESS )
-      throw Error( mtc::strprintf( "failed to parse XML, error '%s:%s' @" __FILE__ ":" LINE_STRING,
-        xdoc.ErrorName(), xdoc.ErrorStr() ) );
+    if ( (xres = xdoc.Parse( buff->GetPtr(), buff->GetLen() )) != tinyxml2::XML_SUCCESS )
+    {
+      throw Error( mtc::strprintf( "failed to parse XML, error '%s' @" __FILE__ ":" LINE_STRING,
+        xdoc.ErrorStr() ) );
+    }
 
     for ( auto child = xdoc.FirstChild(); child != nullptr; child = child->NextSibling() )
       load.Load( text, *child );
