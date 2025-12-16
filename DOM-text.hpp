@@ -71,11 +71,8 @@ namespace DeliriX
 
   // serialization
     auto  GetBufLen() const -> size_t;
-  template <class O>
-    auto  Serialize( O* ) const -> O*;
   template <class S>
     auto  FetchFrom( S* ) -> S*;
-    auto  Serialize( IText* ) const -> IText*;
 
   protected:
     std::vector<Paragraph>  blocks;
@@ -85,33 +82,7 @@ namespace DeliriX
 
   };
 
-  bool  IsEncoded( const ITextView&, uint32_t encoding );
-  auto  CopyUtf16( IText*, const ITextView&, uint32_t default_encoding = 0 ) -> IText*;
-  auto  Serialize( IText*, const ITextView& ) -> IText*;
-
 // Text template implementation
-
-  template <class O>
-  O*  Text::Serialize( O* o ) const
-  {
-    o = ::Serialize( o, blocks.size() );
-
-    for ( auto& str: blocks )
-      if ( !str.Serialize( [&]( const void* p, size_t l ){  return (o = ::Serialize( o, p, l )) != nullptr;  } ) )
-        return o;
-
-    o = ::Serialize( o, markup.size() );
-
-    for ( auto& tag: markup )
-    {
-      o = ::Serialize( ::Serialize( ::Serialize( o,
-        tag.tagKey ),
-        tag.uLower ),
-        tag.uUpper );
-    }
-
-    return o;
-  }
 
   template <class S>
   S*  Text::FetchFrom( S* s )

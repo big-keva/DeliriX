@@ -1,11 +1,10 @@
 # if !defined( __DeliriX_textAPI_hpp__ )
 # define __DeliriX_textAPI_hpp__
 # include <mtc/interfaces.h>
+# include <mtc/serialize.h>
 # include <mtc/span.hpp>
 # include <functional>
-# include <stdexcept>
 # include <map>
-#include <mtc/wcsstr.h>
 
 namespace DeliriX
 {
@@ -46,6 +45,7 @@ namespace DeliriX
     auto      GetCharStr() const -> std::string_view;
     auto      GetWideStr() const -> std::basic_string_view<widechar>;
 
+    size_t    GetBufLen() const;
     bool      Serialize( std::function<bool( const void*, size_t )> ) const;
     bool      FetchFrom( std::function<bool( void*, size_t )> );
   };
@@ -77,7 +77,41 @@ namespace DeliriX
     virtual auto  GetBlocks() const -> mtc::span<const Paragraph> = 0;
     virtual auto  GetMarkup() const -> mtc::span<const MarkupTag> = 0;
     virtual auto  GetLength() const -> uint32_t = 0;
+
+    auto    GetBufLen() const -> size_t;
+    template <class O>
+    O*      Serialize( O* ) const;
+    IText*  Serialize( IText* ) const;
   };
+
+  bool  IsEncoded( const ITextView&, uint32_t encoding );
+  auto  CopyUtf16( IText*, const ITextView&, uint32_t default_encoding = 0 ) -> IText*;
+
+  template <class O>
+  O*    ITextView::Serialize( O* o ) const
+  {
+    auto  blocks = GetBlocks();
+    auto  markup = GetMarkup();
+    auto  length = GetLength();
+
+    o = ::Serialize( o, blocks.size() );
+
+    for ( auto& str: blocks )
+      if ( !str.Serialize( [&]( const void* p, size_t l ){  return (o = ::Serialize( o, p, l )) != nullptr;  } ) )
+        return o;
+
+    o = ::Serialize( o, markup.size() );
+
+    for ( auto& tag: markup )
+    {
+      o = ::Serialize( ::Serialize( ::Serialize( o,
+        tag.tagKey ),
+        tag.uLower ),
+        tag.uUpper );
+    }
+
+    return ::Serialize( o, length );
+  }
 
 }
 

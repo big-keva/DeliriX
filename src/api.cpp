@@ -2,6 +2,7 @@
 # include <moonycode/codes.h>
 # include <mtc/wcsstr.h>
 # include <functional>
+#include <bits/ios_base.h>
 
 using SerializeFn = std::function<bool( const void*, size_t )>;
 using FetchFromFn = std::function<bool( void*, size_t )>;
@@ -113,13 +114,23 @@ namespace DeliriX
     return { nullptr, 0 };
   }
 
+  auto  Paragraph::GetBufLen() const -> size_t
+  {
+    auto  enc = GetEncoding();
+    auto  len = GetTextSize();
+    auto  cch = ::GetBufLen( enc + 1 )
+              + ::GetBufLen( len );
+
+    return enc == uint32_t(-1) ? cch + len * sizeof(widechar) : cch + len;
+  }
+
   bool  Paragraph::Serialize( std::function<bool( const void*, size_t )> fns ) const
   {
     auto  enc = GetEncoding();
     auto  len = GetTextSize();
     auto  out = ::Serialize( ::Serialize( &fns, enc + 1 ), len );
 
-    out = enc == (uint32_t)-1 ? ::Serialize( out, charstr, len * sizeof(widechar) )
+    out = enc == (uint32_t)-1 ? ::Serialize( out, widestr, len * sizeof(widechar) )
       : ::Serialize( out, charstr, len );
 
     return out != nullptr;
@@ -167,6 +178,68 @@ namespace DeliriX
     para.charstr = (char*)(1 + ParagraphCtl::Create( str, len, cp ));
 
     return AddParagraph( para );
+  }
+
+  // ITextView
+
+  auto  ITextView::GetBufLen() const -> size_t
+  {
+    auto  blocks = GetBlocks();
+    auto  markup = GetMarkup();
+    auto  length = ::GetBufLen( blocks.size() )
+                 + ::GetBufLen( markup.size() ) + ::GetBufLen( GetLength() );
+
+    for ( auto& str: blocks )
+      length += str.GetBufLen();
+
+    for ( auto& tag: markup )
+      length += ::GetBufLen( tag.tagKey ) + ::GetBufLen( tag.uLower ) + ::GetBufLen( tag.uUpper );
+
+    return length;
+  }
+
+  auto  ITextView::Serialize( IText* output ) const -> IText*
+  {
+    auto  blocks = GetBlocks();
+    auto  markup = GetMarkup();
+    auto  lineIt = blocks.begin();
+    auto  spanIt = markup.begin();
+    auto  offset = uint32_t(0);
+    auto  fPrint = std::function<void( IText*, uint32_t )>();
+
+    fPrint = [&]( IText* to, uint32_t up )
+    {
+      while ( lineIt != blocks.end() && offset < up )
+      {
+        // check if print next line to current IText*
+        if ( spanIt == markup.end() || offset < spanIt->uLower )
+        {
+          auto  enc = lineIt->GetEncoding();
+
+          if ( enc == unsigned(-1) )
+            to->AddBlock( lineIt->GetWideStr() );
+          else
+            to->AddBlock( enc, lineIt->GetCharStr() );
+
+          offset += lineIt->GetTextSize();
+
+          if ( ++lineIt == blocks.end() )
+            return;
+          continue;
+        }
+
+        // check if open new span
+        if ( offset >= spanIt->uLower )
+        {
+          auto  new_to = to->AddMarkupTag( spanIt->tagKey );
+          auto  uUpper = spanIt->uUpper;
+            ++spanIt;
+          fPrint( new_to.ptr(), uUpper );
+        }
+      }
+    };
+
+    return fPrint( output, uint32_t(-1) ), output;
   }
 
   // helpers
@@ -217,48 +290,7 @@ namespace DeliriX
   {
     UtfTxt  utfOut( output, encode );
       utfOut.Attach();
-    return Serialize( &utfOut, source );
-  }
-
-  auto  Serialize( IText* output, const ITextView& source ) -> IText*
-  {
-    auto  lineIt = source.GetBlocks().begin();
-    auto  spanIt = source.GetMarkup().begin();
-    auto  offset = uint32_t(0);
-    auto  fPrint = std::function<void( IText*, uint32_t )>();
-
-    fPrint = [&]( IText* to, uint32_t up )
-    {
-      while ( lineIt != source.GetBlocks().end() && offset < up )
-      {
-        // check if print next line to current IText*
-        if ( spanIt == source.GetMarkup().end() || offset < spanIt->uLower )
-        {
-          auto  enc = lineIt->GetEncoding();
-
-          if ( enc == unsigned(-1) )
-            to->AddBlock( lineIt->GetWideStr() );
-          else
-            to->AddBlock( enc, lineIt->GetCharStr() );
-
-          offset += lineIt->GetTextSize();
-
-          if ( ++lineIt == source.GetBlocks().end() )  return;
-            continue;
-        }
-
-        // check if open new span
-        if ( offset >= spanIt->uLower )
-        {
-          auto  new_to = to->AddMarkupTag( spanIt->tagKey );
-          auto  uUpper = spanIt->uUpper;
-            ++spanIt;
-          fPrint( new_to.ptr(), uUpper );
-        }
-      }
-    };
-
-    return fPrint( output, uint32_t(-1) ), output;
+    return Serialize( (IText*)&utfOut, source );
   }
 
 }

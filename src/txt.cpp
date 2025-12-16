@@ -171,11 +171,6 @@ namespace DeliriX
     return length;
   }
 
-  auto  Text::Serialize( IText* text ) const -> IText*
-  {
-    return DeliriX::Serialize( text, *this );
-  }
-
   // Text::Markup implementation
   
   Text::Markup::Markup( Text* owner, const std::string_view& tag ):
