@@ -1,7 +1,6 @@
-#include <moonycode/codes.h>
-
 # include "../DOM-load.hpp"
 # include <mtc/json.h>
+# include <moonycode/codes.h>
 
 namespace DeliriX {
 namespace load_as {
