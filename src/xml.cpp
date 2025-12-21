@@ -46,6 +46,11 @@ namespace DeliriX
         this->encode = codepages::codepage_iso;
       }
         else
+      if ( mtc::w_strncasecmp( encode->second.c_str(), "koi8-r", 8 ) == 0 )
+      {
+        this->encode = codepages::codepage_koi8;
+      }
+        else
       throw Error( mtc::strprintf( "invalid encoding '%s' @" __FILE__ ":" LINE_STRING, encode->second.c_str() ) );
     }
     return text;
