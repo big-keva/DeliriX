@@ -74,14 +74,17 @@ namespace DeliriX
 
   struct ITextView: mtc::Iface
   {
-    virtual auto  GetBlocks() const -> mtc::span<const Paragraph> = 0;
-    virtual auto  GetMarkup() const -> mtc::span<const MarkupTag> = 0;
-    virtual auto  GetLength() const -> uint32_t = 0;
+    virtual auto    GetBlocks() const -> mtc::span<const Paragraph> = 0;
+    virtual auto    GetMarkup() const -> mtc::span<const MarkupTag> = 0;
+    virtual auto    GetLength() const -> uint32_t = 0;
 
-    auto    GetBufLen() const -> size_t;
-    template <class O>
-    O*      Serialize( O* ) const;
-    IText*  Serialize( IText* ) const;
+            auto    FindFirstTag( const char* tag ) const -> mtc::api<ITextView>;
+    virtual auto    FindNextTag() -> mtc::api<ITextView>;
+
+            auto    GetBufLen() const -> size_t;
+          template <class O>
+            O*      Serialize( O* ) const;
+            IText*  Serialize( IText* ) const;
   };
 
   bool  IsEncoded( const ITextView&, uint32_t encoding );
