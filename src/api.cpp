@@ -51,23 +51,24 @@ namespace DeliriX
 
   class ViewSpan final: public ITextView
   {
-    std::string                 tagKey;
     mtc::span<const Paragraph>  blocks;
     mtc::span<const MarkupTag>  markup;
     mtc::api<const ITextView>   parent;
-    uint32_t                    length;
+    uint32_t                    txOffs;
+    uint32_t                    txSize;
 
   public:
     ViewSpan(
-      const std::string&          tag,
       mtc::span<const Paragraph>  blk,
       mtc::span<const MarkupTag>  fmt,
-      mtc::api<const ITextView>   par );
+      mtc::api<const ITextView>   par,
+      uint32_t                    off );
 
-    auto    GetBlocks() const -> mtc::span<const Paragraph> override  {  return blocks;  }
-    auto    GetMarkup() const -> mtc::span<const MarkupTag> override  {  return markup;  }
-    auto    GetLength() const -> uint32_t                             {  return length;  }
-    auto    FindNext() -> mtc::api<ITextView>;
+    auto    GetBlocks() const -> mtc::span<const Paragraph>       override;
+    auto    GetMarkup() const -> mtc::span<const MarkupTag>       override;
+    auto    GetLength() const -> uint32_t                         override;
+    auto    FindFirst( const char* ) const -> mtc::api<ITextView> override;
+    auto    FindNext() const -> mtc::api<ITextView>               override;
 
     implement_lifetime_control
   };
@@ -206,27 +207,106 @@ namespace DeliriX
   // ViewSpan implementation
 
   ViewSpan::ViewSpan(
-    const std::string&          tag,
     mtc::span<const Paragraph>  blk,
     mtc::span<const MarkupTag>  fmt,
-    mtc::api<const ITextView>   par ):
-      tagKey( tag ), blocks( blk ), markup( fmt ), parent( par ), length( 0 )
+    mtc::api<const ITextView>   par,
+    uint32_t                    off ):
+      blocks( blk ),
+      markup( fmt ),
+      parent( par ),
+      txOffs( off )
   {
     for ( auto& next: blk )
-      length += next.GetTextSize();
+      txSize += next.GetTextSize();
   }
 
-  auto    ViewSpan::FindNext() -> mtc::api<ITextView>
+  auto    ViewSpan::GetBlocks() const -> mtc::span<const Paragraph>
   {
-    auto  parblk = parent->GetBlocks();
-    auto  parset = parent->GetMarkup();
+    return blocks;
+  }
 
+  auto    ViewSpan::GetMarkup() const -> mtc::span<const MarkupTag>
+  {
+    return markup.subspan( 1, markup.size() - 1 );
+  }
 
+  auto    ViewSpan::GetLength() const -> uint32_t
+  {
+    return txSize;
+  }
+
+  auto  ViewSpan::FindFirst( const char* tag ) const -> mtc::api<ITextView>
+  {
+    for ( size_t mk_pos = 1; mk_pos < markup.size(); ++mk_pos )
+      if ( markup[mk_pos].tagKey == tag )
+      {
+        size_t  mk_len = 1;
+        size_t  bl_pos;
+        size_t  bl_len;
+        auto    txtOrg = txOffs;
+        auto    txtEnd = uint32_t{};
+        auto    uLower = markup[mk_pos].uLower;
+        auto    uUpper = markup[mk_pos].uUpper;
+
+        // get tag length in markups
+        while ( mk_pos + mk_len < markup.size() && markup[mk_pos + mk_len].uUpper <= uUpper )
+          ++mk_len;
+
+        // get block start
+        for ( bl_pos = 0; bl_pos < blocks.size() && txtOrg < uLower; ++bl_pos )
+          txtOrg += blocks[bl_pos].GetTextSize();
+
+        // get block count
+        for ( bl_len = 0, txtEnd = txtOrg; bl_pos + bl_len < blocks.size() && txtEnd <= uUpper; ++bl_len )
+          txtEnd += blocks[bl_pos + bl_len].GetTextSize();
+
+        // create the subspan
+        return new ViewSpan( blocks.subspan( bl_pos, bl_len ), markup.subspan( mk_pos, mk_len ), this, txOffs );
+      }
+    return nullptr;
+  }
+
+  auto    ViewSpan::FindNext() const -> mtc::api<ITextView>
+  {
+    auto  parfmt = parent->GetMarkup();
+    auto& tagKey = markup.front().tagKey;
+    auto  mk_pos = size_t(1);
+    auto  txtOrg = txOffs;
+
+  // skip until current tag
+    while ( mk_pos < parfmt.size() && parfmt[mk_pos].uLower < markup.front().uUpper )
+      ++mk_pos;
+
+  // search next tag
+    while ( mk_pos < parfmt.size() && parfmt[mk_pos].tagKey != tagKey )
+      ++mk_pos;
+
+    if ( mk_pos < parfmt.size() )
+    {
+      auto  parblk = parent->GetBlocks();
+      auto  mk_len = size_t(1);
+      auto  bl_pos = size_t(0);
+      auto  bl_len = size_t(0);
+      auto  txtEnd = uint32_t{};
+
+      while ( mk_pos + mk_len < parfmt.size() && parfmt[mk_pos + mk_len].uUpper <= parfmt[mk_pos].uUpper )
+        ++mk_len;
+
+      while ( bl_pos < parblk.size() && txtOrg < parfmt[mk_pos].uLower )
+        txtOrg += parblk[bl_pos++].GetTextSize();
+
+      for ( txtEnd = txtOrg; bl_pos + bl_len < parblk.size() && txtEnd <= parfmt[mk_pos].uUpper; ++bl_len )
+        txtEnd += parblk[bl_pos + bl_len].GetTextSize();
+
+      // create the subspan
+      return new ViewSpan( parblk.subspan( bl_pos, bl_len ), markup.subspan( mk_pos, mk_len ), this, txtOrg );
+    }
+    return nullptr;
   }
 
   // ITextView
 
-  auto  ITextView::FindFirstTag( const char* tag ) const -> mtc::api<ITextView>
+  auto  ITextView::FindFirst( const char* tag ) const -> mtc::api<ITextView>
   {
     auto  blocks = GetBlocks();
     auto  markup = GetMarkup();
@@ -234,32 +314,33 @@ namespace DeliriX
     for ( size_t mk_pos = 0; mk_pos < markup.size(); ++mk_pos )
       if ( markup[mk_pos].tagKey == tag )
       {
-        size_t  mk_len;
+        size_t  mk_len = 1;
         size_t  bl_pos;
         size_t  bl_len;
-        auto    txtOrg = markup[0].uLower;
+        auto    txtOrg = uint32_t(0);
+        auto    txtEnd = uint32_t{};
         auto    uLower = markup[mk_pos].uLower;
         auto    uUpper = markup[mk_pos].uUpper;
 
       // get tag length in markups
-        for ( mk_len = 0; mk_pos + mk_len < markup.size() && markup[mk_pos + mk_len].uUpper <= uUpper; ++mk_len )
-          (void)NULL;
+        while ( mk_pos + mk_len < markup.size() && markup[mk_pos + mk_len].uUpper <= uUpper )
+          ++mk_len;
 
       // get block start
         for ( bl_pos = 0; bl_pos < blocks.size() && txtOrg < uLower; ++bl_pos )
           txtOrg += blocks[bl_pos].GetTextSize();
 
       // get block count
-        for ( bl_len = 0; bl_pos + bl_len < blocks.size() && txtOrg < uUpper; ++bl_len )
-          txtOrg += blocks[bl_pos + bl_len].GetTextSize();
+        for ( bl_len = 0, txtEnd = txtOrg; bl_pos + bl_len < blocks.size() && txtEnd <= uUpper; ++bl_len )
+          txtEnd += blocks[bl_pos + bl_len].GetTextSize();
 
       // create the subspan
-        return new ViewSpan( tag, blocks.subspan( bl_pos, bl_len ), markup.subspan( mk_pos, mk_len ), this );
+        return new ViewSpan( blocks.subspan( bl_pos, bl_len ), markup.subspan( mk_pos, mk_len ), this, txtOrg );
       }
     return nullptr;
   }
 
-  auto  ITextView::FindNextTag() -> mtc::api<ITextView>
+  auto  ITextView::FindNext() const -> mtc::api<ITextView>
   {
     return nullptr;
   }

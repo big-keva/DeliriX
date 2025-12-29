@@ -253,81 +253,56 @@ TestItEasy::RegisterFunc  test_text( []()
         "  \"this is a second text string\"\n"
         "]" );
     }
-  }
-  TEST_CASE( "texts/word-break" )
-  {
-    auto  inText = Text{
-      "Первая строка текста: просто строка",
-      "Вторая строка в новом абзаце",
-      { "tag-1", {
-        "Строка внутри тега",
-        { "tag-2", {
-          "Строка внутри вложенного тега" } } } },
-      "Третья строка."
-    };
-    auto  ucText = Text();
-
-    SECTION( "any text may be converted to utf16" )
+    SECTION( "ITextView lists paragraphs and blocks" )
     {
-      REQUIRE_NOTHROW( CopyUtf16( &ucText, inText ) );
-
-      REQUIRE( ucText.GetMarkup().size() == inText.GetMarkup().size() );
-      REQUIRE( ucText.GetBlocks().size() == inText.GetBlocks().size() );
-
-      for ( auto& next: ucText.GetBlocks() )
-        REQUIRE( next.GetEncoding() == uint32_t(-1) );
-    }
-  }
-  /*
-  TEST_CASE( "text/pack-unpack" )
-  {
-    SECTION( "array of TextToken may be packed" )
-    {
-      auto  ucText = Document();
-      auto  txBody = BaseBody<std::allocator<char>>();
-
-      Document{
+      auto  inText = Text{
         "Первая строка текста: просто строка",
-        "Вторая строка в новом абзаце",
         { "tag-1", {
           "Строка внутри тега",
           { "tag-2", {
-            "Строка внутри вложенного тега" } } } },
-        "Третья строка." }.CopyUtf16( &ucText );
-      BreakWords( txBody, ucText.GetBlocks() );
+            "Первая строка внутри первого tag-2",
+            "Вторая строка внутри первого tag-2" } },
+          "Ещё одна строка",
+          { "tag-2", {
+            "Строка внутри второго tag-2"  } } } },
+        "Вторая строка",
+        { "tag-1", {
+          "Строка",
+          { "tag-2", {
+            "Строка внутри третьего tag-2" } } } },
+        "Третья строка."
+      };
 
-      auto  as_vec = std::vector<char>();
-      auto  as_str = std::string();
-      auto  as_stm = std::string();
+      SECTION( "* accessing non-existing tag returns NULL" )
+      {
+        if ( REQUIRE_NOTHROW( inText.FindFirst( "title" ) ) )
+          REQUIRE( inText.FindFirst( "title" ) == nullptr );
+      }
+      SECTION( "* tags are accessed one-by-one in it's limits" )
+      {
+        mtc::api<const ITextView> tag1view;
+        mtc::api<const ITextView> tag2view;
 
-      SECTION( "* as std::vector<char>" )
-      {
-        REQUIRE_NOTHROW( as_vec = PackWords( txBody.GetTokens() ) );
-      }
-      SECTION( "* as std::string through function<>" )
-      {
-        REQUIRE_NOTHROW( PackWords( [&]( const void* p, size_t l )
-          {  as_str += std::string( (const char*)p, l );  }, txBody.GetTokens() ) );
-      }
-      SECTION( "* as IByteStream" )
-      {
-        REQUIRE_NOTHROW( PackWords( ByteStreamOnString( as_stm ).ptr(), txBody.GetTokens() ) );
-      }
-      SECTION( "and the results are the same" )
-      {
-        REQUIRE( as_str == as_stm );
-        REQUIRE( as_stm.length() == as_vec.size() );
-        REQUIRE( memcmp( as_stm.data(), as_vec.data(), as_stm.size() ) == 0 );
-      }
+        if ( REQUIRE_NOTHROW( tag1view = inText.FindFirst( "tag-1" ) ) && REQUIRE( tag1view != nullptr ) )
+        {
+          REQUIRE( tag1view->GetMarkup().size() == 2 );
+          REQUIRE( tag1view->GetBlocks().size() == 5 );
 
-      SECTION( "the packed words may be unpacked" )
-      {
-        auto  unpack = Body();
+          if ( REQUIRE_NOTHROW( tag2view = tag1view->FindFirst( "tag-2" ) ) && REQUIRE( tag2view != nullptr ) )
+          {
+            REQUIRE( tag2view->GetMarkup().size() == 0 );
+            REQUIRE( tag2view->GetBlocks().size() == 2 );
 
-        if ( REQUIRE_NOTHROW( unpack = UnpackWords( as_vec ) ) )
-          REQUIRE( unpack.GetTokens() == txBody.GetTokens() );
+            if ( REQUIRE_NOTHROW( tag2view = tag2view->FindNext() ) && REQUIRE( tag2view != nullptr ) )
+            {
+              REQUIRE( tag2view->GetMarkup().size() == 0 );
+              REQUIRE( tag2view->GetBlocks().size() == 1 );
+
+              REQUIRE_NOTHROW( tag2view = tag2view->FindNext() ) && REQUIRE( tag2view == nullptr );
+            }
+          }
+        }
       }
     }
   }
-  */
 } );

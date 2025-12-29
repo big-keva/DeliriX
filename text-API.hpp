@@ -78,13 +78,13 @@ namespace DeliriX
     virtual auto    GetMarkup() const -> mtc::span<const MarkupTag> = 0;
     virtual auto    GetLength() const -> uint32_t = 0;
 
-            auto    FindFirstTag( const char* tag ) const -> mtc::api<ITextView>;
-    virtual auto    FindNextTag() -> mtc::api<ITextView>;
+    virtual auto    FindFirst( const char* tag ) const -> mtc::api<ITextView>;
+    virtual auto    FindNext() const -> mtc::api<ITextView>;
 
-            auto    GetBufLen() const -> size_t;
-          template <class O>
-            O*      Serialize( O* ) const;
-            IText*  Serialize( IText* ) const;
+    auto    GetBufLen() const -> size_t;
+  template <class O>
+    O*      Serialize( O* ) const;
+    IText*  Serialize( IText* ) const;
   };
 
   bool  IsEncoded( const ITextView&, uint32_t encoding );

@@ -150,25 +150,25 @@ namespace DeliriX
 
   auto  Text::GetBufLen() const -> size_t
   {
-    auto  length = ::GetBufLen( blocks.size() ) + ::GetBufLen( markup.size() );
+    auto  cch = ::GetBufLen( blocks.size() ) + ::GetBufLen( markup.size() );
 
     for ( auto& str: blocks )
     {
       auto  enc = str.GetEncoding();
       auto  len = str.GetTextSize();
 
-      length +=
+      cch +=
         ::GetBufLen( enc + 1 ) + ::GetBufLen( len ) + len * (enc == unsigned(-1) ? sizeof(widechar) : sizeof(char));
     }
 
     for ( auto& tag: markup )
     {
-      length +=
+      cch +=
         ::GetBufLen( tag.tagKey )
       + ::GetBufLen( tag.uLower )
       + ::GetBufLen( tag.uUpper );
     }
-    return length;
+    return cch + ::GetBufLen( length );
   }
 
   // Text::Markup implementation

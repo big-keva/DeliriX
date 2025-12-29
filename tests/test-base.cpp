@@ -19,7 +19,8 @@ TestItEasy::RegisterFunc  test_text_base( []()
       SECTION( "for empty source or invalid data, OpenZip() throws invalid_argument" )
       {
         REQUIRE_EXCEPTION( OpenZip( {} ), std::invalid_argument );
-        REQUIRE_EXCEPTION( OpenZip( mtc::CreateByteBuffer( "non-zip archive", 15 ).ptr() ), std::invalid_argument );
+        if ( REQUIRE_NOTHROW( OpenZip( mtc::CreateByteBuffer( "non-zip archive", 15 ).ptr() ) ) )
+          REQUIRE( OpenZip( mtc::CreateByteBuffer( "non-zip archive", 15 ).ptr() ) == nullptr );
       }
       SECTION( "zip archive files are opened" )
       {
