@@ -27,11 +27,42 @@ namespace DeliriX
 
   // FB2 implementation
 
+  const char* ignoreTags[4] =
+  {
+    "FictionBook",
+    "emphasis",
+    "strong",
+    "style"
+  };
+
+  const char* removeTags[3] =
+  {
+    "binary",
+    "empty-line",
+    "image"
+  };
+
+  template <size_t N>
+  bool  IsTagOneOf( const std::string_view& tag, const char* (&tags)[N] )
+  {
+    for ( auto next: tags )
+    {
+      int  rescmp = tag.compare( next );
+
+      if ( rescmp == 0 )
+        return true;
+      if ( rescmp < 0 )
+        break;
+    }
+    return false;
+  }
+
   auto  FB2::AddMarkupTag( const std::string_view& tag, const markup_attribute& att ) -> mtc::api<IText>
   {
-    if ( tag == "binary" )
+    if ( IsTagOneOf( tag, removeTags ) )
       return nullptr;
-    if ( tag == "FictionBook" )
+
+    if ( IsTagOneOf( tag, ignoreTags ) )
       return this;
 
     if ( tag == "p" )
