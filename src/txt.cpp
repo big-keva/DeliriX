@@ -36,7 +36,7 @@ namespace DeliriX
 
   Text::Text(): refCount( 1 ) {}
 
-  Text::Text( Text&& r )
+  Text::Text( Text&& r ): refCount( 1 )
   {
     if ( r.nested != nullptr )
       r.nested->Close();
