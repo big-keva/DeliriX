@@ -1,8 +1,22 @@
 cmake_minimum_required(VERSION 3.10)
-project(DelphiX)
+project(DeliriX)
+
+find_package(MoonyCode QUIET)
 
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_CXX_STANDARD 17)
+
+if(NOT DEFINED DEVELOPER_MODE)
+  message(STATUS "'DEVELOPER_MODE' it not set, try detect the build environment...")
+
+  if(DEFINED ENV{CLION_IDE})
+    message(STATUS "Clion build environment detected")
+
+    set(DEVELOPER_MODE TRUE CACHE BOOL "" FORCE)
+  else()
+    set(DEVELOPER_MODE FALSE CACHE BOOL "" FORCE)
+  endif()
+endif()
 
 if(MSVC)
   add_compile_options(-D_CRT_SECURE_NO_WARNINGS)
@@ -27,8 +41,9 @@ include_directories(
 	./
 	contrib)
 
-if (NOT TARGET moonycode)
+if (MoonyCode_LIBRARY STREQUAL "" AND NOT TARGET moonycode-static AND NOT TARGET moonycode-shared)
 	add_subdirectory(contrib/moonycode)
+	set(MoonyCode_LIBRARY moonycode-objset)
 endif()
 
 if (NOT TARGET mtc)
