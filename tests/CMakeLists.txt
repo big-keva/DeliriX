@@ -5,7 +5,7 @@ set(SourceDir ${${PROJECT_NAME}_SOURCE_DIR})
 
 include(samples.cmake)
 
-link_libraries(DeliriX ${MoonyCode_LIBRARY} mtc tinyxml2 minizip z)
+link_libraries(DeliriX ${MoonyCode_LIB} mtc tinyxml2 minizip z)
 
 add_sample_as_cpp(samples/zipzip.cpp ${SourceDir}/samples/zip.zip
 	sample_zipzip_buf
