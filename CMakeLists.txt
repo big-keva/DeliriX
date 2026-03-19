@@ -41,11 +41,6 @@ include_directories(
 	./
 	contrib)
 
-if (MoonyCode_LIBRARY STREQUAL "" AND NOT TARGET moonycode-static AND NOT TARGET moonycode-shared)
-	add_subdirectory(contrib/moonycode)
-	set(MoonyCode_LIBRARY moonycode-objset)
-endif()
-
 if (NOT TARGET mtc)
 	add_subdirectory(contrib/mtc)
 endif()
